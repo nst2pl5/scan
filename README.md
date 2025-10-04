@@ -9,9 +9,9 @@ Flask veebirakendus Solana token-ite varajaste tehingute skannimiseks.
 - **JSON Eksport**: Automaatne allalaadimise link timestampi-ga
 - **Tume Teema**: Kaasaegne gradient disain
 
-## 🚀 GitHub Actions Deployment
+## 🚀 GitHub Actions + Render Deployment
 
-Projekt kasutab automaatset deployment-i läbi GitHub Actions.
+Projekt kasutab automaatset deployment-i läbi GitHub Actions ja Render.com.
 
 ### Setup & Deploy
 
@@ -24,21 +24,26 @@ git remote add origin https://github.com/KASUTAJANIMI/REPO-NIMI.git
 git push -u origin main
 ```
 
-2. **Automaatne Deployment:**
-   - GitHub Actions käivitub automaatselt iga `git push main` korral
-   - Testib rakendust (import kontrollid)
-   - Buildib aplikatsiooni
-   - Deployb automaatselt
+2. **Render Setup:**
+   - Mine [render.com](https://render.com) ja logi sisse
+   - "New +" → "Web Service"
+   - Ühenda GitHub repository
+   - Render tuvastab automaatselt `render.yaml` faili
+   - Vali "Free" plaan ja deploy
 
-3. **Live URL:** `https://KASUTAJANIMI.github.io/REPO-NIMI`
+3. **Live URL:** `https://teie-rakendus-nimi.onrender.com`
 
-### Workflow Funktsioonid
+### Automaatne Workflow
 
-✅ **Automaatne testimine** - iga push korral  
-✅ **Python 3.9 keskkond** - standardiseeritud  
-✅ **Sõltuvuste installimine** - requirements.txt  
-✅ **Build validation** - aplikatsiooni kompileerimine  
-✅ **Deployment** - ainult main branch
+✅ **GitHub Actions** - iga push main-i korral:
+- Testib Flask rakendust
+- Valideerib Gunicorn konfiguratsiooni
+- Käivitab Render deployment
+
+✅ **Render** - automaatne deployment:
+- Python 3.9 keskkond
+- Gunicorn web server
+- Live domain tasuta
 
 ## 💻 Kohalik Arendus
 
@@ -75,8 +80,9 @@ python app.py
 ```
 scan/
 ├── app.py                           # Flask rakendus
-├── requirements.txt                 # Python sõltuvused  
-├── .github/workflows/deploy.yml     # GitHub Actions deployment
+├── requirements.txt                 # Python sõltuvused (Flask, requests, gunicorn)
+├── render.yaml                      # Render deployment konfiguratsioon
+├── .github/workflows/deploy.yml     # GitHub Actions CI/CD
 ├── templates/index.html             # Veebi liides
 ├── downloads/                       # JSON failid
 └── README.md                        # Dokumentatsioon

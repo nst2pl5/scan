@@ -1382,8 +1382,8 @@
             
             try {
                 console.log('🔍 Searching for:', query);
-                
-                const response = await fetch(`/api/token/search?keyword=${encodeURIComponent(query)}`, {
+
+                const response = await fetch(`http://localhost:5000/api/token/search?keyword=${encodeURIComponent(query)}`, {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' }
                 });

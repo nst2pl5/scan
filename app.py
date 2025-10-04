@@ -20,14 +20,33 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Enable template auto-reloading for development
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+# Detect environment
+IS_VERCEL = os.environ.get('VERCEL') == 'true'
+IS_LOCALHOST = not IS_VERCEL
+
+# Configure for development vs production
+if IS_LOCALHOST:
+    # Development configuration
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    logger.info("Running in LOCALHOST/DEVELOPMENT mode")
+else:
+    # Vercel/Production configuration
+    app.config['TEMPLATES_AUTO_RELOAD'] = False
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year cache
+    logger.info("Running in VERCEL/PRODUCTION mode")
 
 # Configure upload folder for JSON files
-DOWNLOAD_FOLDER = 'downloads'
+if IS_VERCEL:
+    # In Vercel, use /tmp directory for temporary files
+    DOWNLOAD_FOLDER = '/tmp/downloads'
+else:
+    # In localhost, use local downloads directory
+    DOWNLOAD_FOLDER = 'downloads'
+
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
+    logger.info(f"Created downloads directory: {DOWNLOAD_FOLDER}")
 
 def generate_solauth_token() -> str:
     """
@@ -265,7 +284,13 @@ def download_file(filename):
         if os.path.exists(filepath):
             return send_file(filepath, as_attachment=True, download_name=filename)
         else:
-            return "File not found", 404
+            if IS_VERCEL:
+                return jsonify({
+                    'error': 'File not found. Note: On Vercel, files are stored temporarily and may be cleaned up between requests.',
+                    'suggestion': 'Please generate the file again.'
+                }), 404
+            else:
+                return "File not found", 404
     except Exception as e:
         return f"Error downloading file: {str(e)}", 500
 
@@ -470,20 +495,29 @@ def status_check():
     except:
         api_status = "disconnected"
     
+    environment = "localhost" if IS_LOCALHOST else "vercel"
+    
     return jsonify({
         'status': 'operational',
+        'environment': environment,
         'api_connection': api_status,
+        'download_folder': DOWNLOAD_FOLDER,
         'timestamp': datetime.now().isoformat(),
         'endpoints': ['/health', '/status', '/', '/process', '/api/token/search']
     })
 
 if __name__ == "__main__":
+    # This runs only for localhost development
     port = int(os.environ.get('PORT', 5001))
-    logger.info(f"Starting Flask app on port {port}")
-    app.run(debug=False, host='0.0.0.0', port=port)
+    logger.info(f"Starting Flask app in DEVELOPMENT mode on port {port}")
+    app.run(debug=True, host='0.0.0.0', port=port)
 else:
-    logger.info("Flask app imported as a module for production")
-    # Create downloads directory if it doesn't exist in production
+    # This runs for Vercel production deployment
+    logger.info("Flask app imported as module for VERCEL production")
+    # Ensure downloads directory exists in production
     if not os.path.exists(DOWNLOAD_FOLDER):
         os.makedirs(DOWNLOAD_FOLDER)
         logger.info(f"Created downloads directory: {DOWNLOAD_FOLDER}")
+
+# Export app for Vercel
+application = app

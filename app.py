@@ -261,6 +261,167 @@ def download_file(filename):
     except Exception as e:
         return f"Error downloading file: {str(e)}", 500
 
+@app.route('/api/token/search')
+def search_tokens():
+    """Advanced token search using real Solscan API"""
+    keyword = request.args.get('keyword', '').strip()
+    category = request.args.get('category', 'all').lower()  # all, tokens, addresses
+    
+    if not keyword or len(keyword) < 2:
+        return jsonify({
+            "success": True,
+            "data": {
+                "all": [],
+                "tokens": [],
+                "addresses": [],
+                "total_count": 0
+            }
+        })
+    
+    print(f"🔍 Searching Solscan API for: {keyword} (category: {category})")
+    
+    # Get real data from Solscan API
+    real_tokens = get_real_token_results(keyword)
+    real_addresses = get_real_address_results(keyword)
+    
+    # Filter based on category
+    if category == 'tokens':
+        return jsonify({
+            "success": True,
+            "data": {
+                "tokens": real_tokens,
+                "total_count": len(real_tokens)
+            }
+        })
+    elif category == 'addresses':
+        return jsonify({
+            "success": True,
+            "data": {
+                "addresses": real_addresses,
+                "total_count": len(real_addresses)
+            }
+        })
+    else:  # all
+        all_results = real_tokens + real_addresses
+        return jsonify({
+            "success": True,
+            "data": {
+                "all": all_results,
+                "tokens": real_tokens,
+                "addresses": real_addresses,
+                "total_count": len(all_results)
+            }
+        })
+
+def get_real_token_results(keyword):
+    """Get real token results from Solscan v2 search API"""
+    try:
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "sol-aut": generate_solauth_token(),
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://solscan.io/",
+            "Origin": "https://solscan.io",
+            "Connection": "keep-alive",
+        }
+        
+        # Use the correct Solscan v2 search API
+        url = "https://api-v2.solscan.io/v2/search"
+        params = {"keyword": keyword}
+        
+        print(f"   🔍 Searching tokens with v2 API: {keyword}")
+        response = requests.get(url, headers=headers, params=params, timeout=15)
+        
+        print(f"   Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('success') and data.get('data'):
+                tokens = []
+                
+                # Find tokens group in response
+                for group in data['data']:
+                    if group.get('type') == 'tokens' and 'result' in group:
+                        for token in group['result'][:20]:  # Limit to 20
+                            normalized_token = {
+                                "type": "token",
+                                "address": token.get('address', ''),
+                                "symbol": token.get('symbol', 'UNKNOWN'),
+                                "name": token.get('name', 'Unknown Token'),
+                                "logoUri": token.get('icon', ''),
+                                "verified": token.get('reputation', '') == 'ok',
+                                "decimals": token.get('decimals', 9),
+                                "holders": token.get('holder', 0),
+                                "priority": token.get('priority', 0)
+                            }
+                            
+                            if normalized_token['address'] and len(normalized_token['address']) > 20:
+                                tokens.append(normalized_token)
+                
+                print(f"   ✅ Found {len(tokens)} tokens")
+                return tokens
+            else:
+                print(f"   ❌ No success or data in response")
+                return []
+        else:
+            print(f"   ❌ HTTP {response.status_code}: {response.text[:200]}")
+            return []
+            
+    except Exception as e:
+        print(f"❌ Token search error: {str(e)}")
+        return []
+
+def get_real_address_results(keyword):
+    """Get real address results from the same v2 search API"""
+    try:
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "sol-aut": generate_solauth_token(),
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://solscan.io/",
+            "Origin": "https://solscan.io",
+            "Connection": "keep-alive",
+        }
+        
+        # Use the same v2 search API for addresses
+        url = "https://api-v2.solscan.io/v2/search"
+        params = {"keyword": keyword}
+        
+        print(f"   🔍 Searching addresses with v2 API: {keyword}")
+        response = requests.get(url, headers=headers, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('success') and data.get('data'):
+                addresses = []
+                
+                # Find addresses/accounts group in response
+                for group in data['data']:
+                    if group.get('type') == 'address' and 'result' in group:
+                        for addr in group['result'][:20]:  # Limit to 20
+                            normalized_address = {
+                                "type": "address",
+                                "address": addr.get('address', ''),
+                                "label": addr.get('label') or addr.get('name') or 'Unknown Address',
+                                "description": addr.get('description', '')
+                            }
+                            
+                            if normalized_address['address'] and len(normalized_address['address']) > 20:
+                                addresses.append(normalized_address)
+                
+                print(f"   ✅ Found {len(addresses)} addresses")
+                return addresses
+            else:
+                return []
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"❌ Address search error: {str(e)}")
+        return []
+
 @app.route('/latest')
 def get_latest_file():
     """Get the latest generated file for download"""

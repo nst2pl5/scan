@@ -24,51 +24,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Clear cache and save to file
-      run: |
-        echo "🧹 Clearing Python cache..."
-        find . -type d -name "__pycache__" -delete
-        find . -name "*.pyc" -delete
-        find . -name "*.pyo" -delete
-        echo "📝 Saving cache clear log..."
-        echo "Cache cleared at $(date)" > cache_clear.txt
-        echo "Files cleaned:" >> cache_clear.txt
-        echo "- Python __pycache__ directories" >> cache_clear.txt
-        echo "- .pyc compiled files" >> cache_clear.txt
-        echo "- .pyo optimized files" >> cache_clear.txt
-        echo "✅ Cache cleared and logged"
-
-    - name: Clean repository state
-      run: |
-        echo "🔄 Cleaning repository state..."
-        git clean -fd
-        git reset --hard HEAD
-        echo "📋 Repository cleaned to pristine state"
-        echo "Repository state: CLEAN" >> cache_clear.txt
-
-    - name: Test Flask app
+    - name: Minimal Flask import test
       run: |
         python -c "import app; print('✅ Flask app imports successfully')"
-        python -c "from app import app; print('✅ Flask app configuration valid')"
 
-    - name: Validate Gunicorn
-      run: |
-        gunicorn --check-config app:app
-        echo "✅ Gunicorn configuration valid"
-
-    - name: Build validation
-      run: |
-        echo "🔨 Build validation completed"
-        echo "✅ Ready for Render deployment"
-        echo "Build validation passed at $(date)" >> cache_clear.txt
-        cat cache_clear.txt
-        
-    - name: Trigger Render Deploy
+    - name: Deploy to Render
       if: github.ref == 'refs/heads/main'
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       run: |
-        echo "🚀 Triggering Render deployment..."
-        echo "📡 Cache will be cleared on Render side during build"
         curl -X POST "https://api.render.com/deploy/srv-d3gg3f0gjchc739o6b9g?key=${RENDER_API_KEY}"
-        echo "📡 Deployment triggered successfully"

@@ -100,7 +100,7 @@ git push origin main
 
 Vaata deployment staatust:
 - **GitHub repo** → **Actions** tab
-- **Badge:** ![Deploy Status](https://github.com/USERNAME/REPO/workflows/Deploy%20Flask%20App/badge.svg)
+- **Badge:** ![Deploy Status](https://github.com/nst2pl5/scan/workflows/Deploy%20Flask%20App/badge.svg)
 
 ## 🎨 Tehnilised Detailid
 

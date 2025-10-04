@@ -2,11 +2,33 @@ services:
   - type: web
     name: solana-token-scanner
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    region: oregon
+    plan: free
+    buildCommand: |
+      echo "🧹 Starting clean deployment process..."
+      echo "Cache clear started at $(date)" > deploy_cache_clear.txt
+      echo "🗑️ Removing Python cache files..."
+      find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+      find . -name "*.pyc" -delete 2>/dev/null || true
+      find . -name "*.pyo" -delete 2>/dev/null || true
+      echo "- Python cache files removed" >> deploy_cache_clear.txt
+      echo "📦 Upgrading pip..."
+      pip install --upgrade pip --no-cache-dir
+      echo "- pip upgraded" >> deploy_cache_clear.txt
+      echo "📋 Installing requirements..."
+      pip install -r requirements.txt --no-cache-dir --force-reinstall
+      echo "- requirements installed fresh" >> deploy_cache_clear.txt
+      echo "✅ Clean deployment completed at $(date)" >> deploy_cache_clear.txt
+      echo "🎉 Build process completed successfully"
+    startCommand: |
+      echo "🚀 Starting application with clean state..."
+      echo "App start time: $(date)" >> deploy_cache_clear.txt
+      gunicorn --bind 0.0.0.0:$PORT --timeout 300 --keep-alive 2 --workers 1 --worker-class sync app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.18
-      - key: PORT
-        generateValue: true
+        value: 3.11.4
+      - key: RENDER
+        value: true
+      - key: CACHE_CLEAR
+        value: enabled
     autoDeploy: true

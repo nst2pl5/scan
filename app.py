@@ -7,8 +7,16 @@ import requests
 import json
 import os
 import time
+import logging
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file, url_for
+
+# Configure logging for production
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -267,6 +275,8 @@ def search_tokens():
     keyword = request.args.get('keyword', '').strip()
     category = request.args.get('category', 'all').lower()  # all, tokens, addresses
     
+    logger.info(f"Token search request: keyword='{keyword}', category='{category}'")
+    
     if not keyword or len(keyword) < 2:
         return jsonify({
             "success": True,
@@ -283,6 +293,9 @@ def search_tokens():
     # Get real data from Solscan API
     real_tokens = get_real_token_results(keyword)
     real_addresses = get_real_address_results(keyword)
+    
+    total_results = len(real_tokens) + len(real_addresses)
+    logger.info(f"Search completed: {len(real_tokens)} tokens, {len(real_addresses)} addresses")
     
     # Filter based on category
     if category == 'tokens':
@@ -437,8 +450,40 @@ def get_latest_file():
     except Exception as e:
         return f"Error: {str(e)}", 500
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for production deployment"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'message': 'Solana Token Scanner is running'
+    })
+
+@app.route('/status')
+def status_check():
+    """Status endpoint with more details"""
+    try:
+        # Test API connectivity
+        test_url = "https://api-v2.solscan.io/v2/search"
+        test_response = requests.get(test_url, params={"keyword": "SOL"}, timeout=5)
+        api_status = "connected" if test_response.status_code == 200 else "error"
+    except:
+        api_status = "disconnected"
+    
+    return jsonify({
+        'status': 'operational',
+        'api_connection': api_status,
+        'timestamp': datetime.now().isoformat(),
+        'endpoints': ['/health', '/status', '/', '/process', '/api/token/search']
+    })
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5001))
+    logger.info(f"Starting Flask app on port {port}")
     app.run(debug=False, host='0.0.0.0', port=port)
 else:
-    print("Flask app imported as a module")
+    logger.info("Flask app imported as a module for production")
+    # Create downloads directory if it doesn't exist in production
+    if not os.path.exists(DOWNLOAD_FOLDER):
+        os.makedirs(DOWNLOAD_FOLDER)
+        logger.info(f"Created downloads directory: {DOWNLOAD_FOLDER}")

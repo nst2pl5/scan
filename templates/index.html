@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Solana Token Transaction Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            padding: clamp(10px, 3vw, 20px);
+            font-size: clamp(14px, 1.2vw, 16px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+        }
+
+        .container {
+            max-width: min(100%, 1260px);
+            margin: 0 auto;
+            background: linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%);
+            border: 1px solid #404040;
+            border-radius: clamp(8px, 2vw, 15px);
+            box-shadow: 
+                0 clamp(10px, 3vw, 20px) clamp(20px, 5vw, 40px) rgba(0,0,0,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: #e2e8f0;
+            padding: clamp(20px, 4vw, 30px);
+            text-align: center;
+            border-bottom: 1px solid #4a5568;
+        }
+
+        .header h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: clamp(5px, 1vw, 10px);
+            line-height: 1.2;
+            word-break: break-word;
+            color: #f7fafc;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            opacity: 0.8;
+            line-height: 1.4;
+            color: #cbd5e0;
+        }
+
+        .form-container {
+            padding: clamp(20px, 5vw, 40px);
+            background: linear-gradient(145deg, #2d2d2d 0%, #1e1e1e 100%);
+        }
+
+        .form-group {
+            margin-bottom: clamp(15px, 3vw, 25px);
+        }
+
+        label {
+            display: block;
+            margin-bottom: clamp(6px, 1vw, 8px);
+            font-weight: 600;
+            color: #e2e8f0;
+            font-size: clamp(0.95rem, 2vw, 1.1rem);
+            line-height: 1.3;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: clamp(12px, 2.5vw, 15px);
+            border: 2px solid #4a5568;
+            background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+            color: #e2e8f0;
+            border-radius: clamp(5px, 1vw, 8px);
+            font-size: max(16px, 1rem);
+            transition: all 0.3s ease;
+            min-height: 44px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #63b3ed;
+            background: linear-gradient(145deg, #1a202c 0%, #2d3748 100%);
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2);
+        }
+
+        input[type="text"]::placeholder {
+            color: #a0aec0;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 50%, #2b77cb 100%);
+            color: white;
+            padding: clamp(12px, 2.5vw, 15px) clamp(20px, 4vw, 30px);
+            border: none;
+            border-radius: clamp(5px, 1vw, 8px);
+            font-size: clamp(1rem, 2vw, 1.1rem);
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            min-height: 50px;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #3182ce 0%, #2b77cb 50%, #2c5aa0 100%);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: clamp(15px, 3vw, 20px);
+            color: #63b3ed;
+            font-weight: 600;
+            font-size: clamp(0.9rem, 1.8vw, 1rem);
+        }
+
+        .spinner {
+            border: 3px solid #2d3748;
+            border-top: 3px solid #63b3ed;
+            border-radius: 50%;
+            width: clamp(25px, 5vw, 30px);
+            height: clamp(25px, 5vw, 30px);
+            animation: spin 1s linear infinite;
+            margin: 0 auto clamp(8px, 2vw, 10px);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: clamp(20px, 4vw, 30px);
+            padding: clamp(15px, 3vw, 20px);
+            border-radius: clamp(5px, 1vw, 8px);
+            border: 1px solid;
+        }
+
+        .result.success {
+            background: linear-gradient(145deg, #1a2f1a 0%, #0f2419 100%);
+            border-color: #38a169;
+            color: #68d391;
+        }
+
+        .result.error {
+            background: linear-gradient(145deg, #2d1b1b 0%, #1a0f0f 100%);
+            border-color: #e53e3e;
+            color: #fc8181;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            color: white;
+            padding: clamp(10px, 2vw, 12px) clamp(20px, 4vw, 25px);
+            border: none;
+            border-radius: clamp(4px, 1vw, 5px);
+            text-decoration: none;
+            display: inline-block;
+            margin-top: clamp(10px, 2vw, 15px);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: clamp(0.9rem, 1.8vw, 1rem);
+            min-height: 44px;
+            line-height: 1.4;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(135deg, #2f855a 0%, #276749 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .logs {
+            max-height: clamp(200px, 40vh, 300px);
+            overflow-y: auto;
+            background: linear-gradient(145deg, #1a202c 0%, #2d3748 100%);
+            border: 1px solid #4a5568;
+            border-radius: clamp(4px, 1vw, 5px);
+            padding: clamp(10px, 2vw, 15px);
+            margin-top: clamp(10px, 2vw, 15px);
+            font-family: 'Courier New', monospace;
+            font-size: clamp(12px, 1.5vw, 14px);
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #e2e8f0;
+        }
+
+        .help-text {
+            font-size: clamp(0.8rem, 1.6vw, 0.9rem);
+            color: #a0aec0;
+            margin-top: clamp(4px, 1vw, 5px);
+            line-height: 1.4;
+        }
+
+        .example {
+            background: linear-gradient(145deg, #1a202c 0%, #2d3748 100%);
+            border: 1px solid #4a5568;
+            border-radius: clamp(4px, 1vw, 5px);
+            padding: clamp(10px, 2vw, 15px);
+            margin-top: clamp(8px, 1.5vw, 10px);
+        }
+
+        .example h4 {
+            color: #63b3ed;
+            margin-bottom: clamp(6px, 1.2vw, 10px);
+            font-size: clamp(0.9rem, 1.8vw, 1rem);
+        }
+
+        .example code {
+            background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+            color: #68d391;
+            padding: clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 6px);
+            border-radius: clamp(2px, 0.5vw, 3px);
+            font-family: 'Courier New', monospace;
+            font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+            word-break: break-all;
+            display: inline-block;
+            max-width: 100%;
+            border: 1px solid #4a5568;
+        }
+
+        /* Mobile Portrait: 320px - 480px */
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            .container {
+                border-radius: 8px;
+                margin: 0;
+                min-width: calc(100% - 20px);
+            }
+
+            .header {
+                padding: 20px 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+                margin-bottom: 5px;
+            }
+
+            .header p {
+                font-size: 0.95rem;
+            }
+
+            .form-container {
+                padding: 20px 15px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            label {
+                font-size: 1rem;
+                margin-bottom: 6px;
+            }
+
+            input[type="text"], input[type="number"] {
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            .submit-btn {
+                padding: 14px 20px;
+                font-size: 1rem;
+                min-height: 48px;
+            }
+
+            .example code {
+                font-size: 0.7rem;
+            }
+
+            .logs {
+                max-height: 200px;
+                font-size: 11px;
+                padding: 10px;
+            }
+        }
+
+        /* Mobile Portrait Very Small: 320px - 375px */
+        @media screen and (max-width: 375px) {
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .form-container {
+                padding: 15px 12px;
+            }
+
+            .example code {
+                font-size: 0.65rem;
+                padding: 2px 4px;
+            }
+        }
+
+        /* Mobile Landscape: 481px - 768px */
+        @media screen and (min-width: 481px) and (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+
+            .container {
+                border-radius: 12px;
+            }
+
+            .header {
+                padding: 25px 20px;
+            }
+
+            .header h1 {
+                font-size: 2.2rem;
+            }
+
+            .form-container {
+                padding: 30px 25px;
+            }
+
+            .submit-btn:hover {
+                transform: translateY(-1px);
+            }
+        }
+
+        /* Mobile Landscape Specific Orientation */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .header {
+                padding: 15px 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+                margin-bottom: 5px;
+            }
+
+            .form-container {
+                padding: 20px 25px;
+            }
+
+            .form-group {
+                margin-bottom: 18px;
+            }
+
+            .logs {
+                max-height: 150px;
+            }
+        }
+
+        /* Tablet Portrait: 769px - 1024px */
+        @media screen and (min-width: 769px) and (max-width: 1024px) {
+            body {
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 90%;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 35px 30px;
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .form-container {
+                padding: 40px 35px;
+            }
+
+            .form-group {
+                margin-bottom: 25px;
+            }
+
+            .submit-btn {
+                padding: 15px 30px;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Tablet Landscape: 769px - 1024px landscape */
+        @media screen and (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
+            .container {
+                max-width: 95%;
+                display: flex;
+                flex-direction: column;
+                max-height: 90vh;
+            }
+
+            .header {
+                padding: 25px 30px;
+                flex-shrink: 0;
+            }
+
+            .header h1 {
+                font-size: 2.2rem;
+                margin-bottom: 8px;
+            }
+
+            .form-container {
+                padding: 30px 35px;
+                overflow-y: auto;
+                flex: 1;
+            }
+
+            .logs {
+                max-height: 180px;
+            }
+        }
+
+        /* Desktop Small: 1025px - 1260px */
+        @media screen and (min-width: 1025px) and (max-width: 1260px) {
+            body {
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1000px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 40px;
+            }
+
+            .header h1 {
+                font-size: 2.8rem;
+            }
+
+            .form-container {
+                padding: 50px 40px;
+            }
+
+            .submit-btn:hover {
+                transform: translateY(-2px);
+            }
+        }
+
+        /* Desktop Large: 1261px+ */
+        @media screen and (min-width: 1261px) {
+            body {
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1260px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 40px;
+            }
+
+            .header h1 {
+                font-size: 3rem;
+            }
+
+            .form-container {
+                padding: 60px 50px;
+            }
+        }
+
+        /* High DPI / Retina Displays */
+        @media screen and (-webkit-min-device-pixel-ratio: 2), 
+               screen and (min-resolution: 192dpi) {
+            .container {
+                box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            }
+        }
+
+        /* Accessibility: Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            .submit-btn {
+                transition: none;
+            }
+
+            .submit-btn:hover {
+                transform: none;
+            }
+
+            .spinner {
+                animation: none;
+            }
+        }
+
+        /* Accessibility: High Contrast */
+        @media (prefers-contrast: high) {
+            .container {
+                border: 2px solid #000;
+            }
+
+            input[type="text"], input[type="number"] {
+                border: 2px solid #000;
+            }
+
+            input[type="text"]:focus, input[type="number"]:focus {
+                border-color: #000;
+                box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+
+            .submit-btn, .loading {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Solana Token Scanner</h1>
+            <p>Get the earliest transactions for any Solana token</p>
+        </div>
+        
+        <div class="form-container">
+            <form id="scanForm">
+                <div class="form-group">
+                    <label for="token_address">Token Address:</label>
+                    <input type="text" id="token_address" name="token_address" required placeholder="Enter Solana token address">
+                    <div class="help-text">The public address of the Solana token you want to analyze</div>
+                    <div class="example">
+                        <h4>Example:</h4>
+                        <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code> (USDC)
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="count">Number of Transactions:</label>
+                    <input type="number" id="count" name="count" min="1" max="1000" value="100" required>
+                    <div class="help-text">How many earliest transactions to retrieve (1-1000)</div>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    🔍 Start Scanning
+                </button>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Processing your request... This may take a few minutes.</div>
+            </div>
+            
+            <div class="result" id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Smart file-save detection without polling
+        let devMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        let lastCheckTime = Date.now();
+        let isRefreshing = false;
+
+        // Check for file changes only when user returns to browser
+        async function checkForChanges() {
+            if (isRefreshing) return;
+            
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'HEAD',
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                const modifiedTime = response.headers.get('last-modified');
+                const modifiedTimestamp = modifiedTime ? new Date(modifiedTime).getTime() : 0;
+                
+                // Only refresh if file was modified after we last checked AND it's been at least 1 second
+                if (modifiedTimestamp > lastCheckTime) {
+                    console.log('🔄 File saved, refreshing...');
+                    isRefreshing = true;
+                    
+                    // Clear caches
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            names.forEach(name => caches.delete(name));
+                        });
+                    }
+                    
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 200);
+                }
+                
+                lastCheckTime = Date.now();
+            } catch (error) {
+                // Ignore network errors
+            }
+        }
+
+        // Manual refresh functions
+        function reloadStyles() {
+            console.log('🔄 Manual refresh triggered...');
+            isRefreshing = true;
+            
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 100);
+        }
+
+        function forceRefresh() {
+            console.log('⚡ Force refresh triggered');
+            isRefreshing = true;
+            window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+        }
+
+        // Development mode setup
+        if (devMode) {
+            console.log('🔧 Development mode: File-save detection enabled');
+            console.log('💡 Files will refresh when you return to browser after saving');
+            console.log('🎨 Manual refresh: reloadStyles() or forceRefresh()');
+            console.log('⌨️  Quick refresh: Ctrl+Shift+R or Ctrl+F5');
+            
+            // Make functions available globally
+            window.reloadStyles = reloadStyles;
+            window.forceRefresh = forceRefresh;
+            
+            // Check for changes when user returns to the tab/window
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && !isRefreshing) {
+                    setTimeout(checkForChanges, 500); // Small delay to ensure file is fully saved
+                }
+            });
+            
+            // Check when window gains focus (user clicked back to browser)
+            window.addEventListener('focus', function() {
+                if (!isRefreshing) {
+                    setTimeout(checkForChanges, 500);
+                }
+            });
+            
+            // Check on mouse movement after being away (more reliable than focus sometimes)
+            let hasBeenAway = false;
+            document.addEventListener('mousemove', function() {
+                if (hasBeenAway && !isRefreshing) {
+                    hasBeenAway = false;
+                    setTimeout(checkForChanges, 300);
+                }
+            });
+            
+            // Mark when user leaves
+            window.addEventListener('blur', function() {
+                hasBeenAway = true;
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (isRefreshing) return;
+                
+                if (e.ctrlKey && e.shiftKey && e.code === 'KeyR') {
+                    e.preventDefault();
+                    reloadStyles();
+                }
+                if (e.ctrlKey && e.code === 'F5') {
+                    e.preventDefault();
+                    forceRefresh();
+                }
+                
+                // Also check for Ctrl+S (though we can't detect the actual save)
+                if (e.ctrlKey && e.code === 'KeyS') {
+                    // User might be saving, check shortly after
+                    setTimeout(() => {
+                        if (!isRefreshing) {
+                            checkForChanges();
+                        }
+                    }, 1000);
+                }
+            });
+            
+            // Add visual dev indicator
+            const indicator = document.createElement('div');
+            indicator.style.cssText = `
+                position: fixed; top: 10px; right: 10px; 
+                background: rgba(99, 179, 237, 0.1); color: #63b3ed; 
+                padding: 5px 10px; border-radius: 5px; font-size: 12px; 
+                z-index: 9999; border: 1px solid rgba(99, 179, 237, 0.3);
+                font-family: monospace; backdrop-filter: blur(10px);
+                transition: opacity 0.3s ease;
+            `;
+            indicator.textContent = '🔧 SAVE-DETECT';
+            document.body.appendChild(indicator);
+            
+            // Fade out indicator after 5 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => {
+                    if (indicator.parentNode) {
+                        indicator.parentNode.removeChild(indicator);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        document.getElementById('scanForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            // Reset UI
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            
+            // Clear console for new request
+            console.clear();
+            console.log('🚀 Starting new token scan request...');
+            
+            try {
+                const formData = new FormData(this);
+                
+                console.log('📝 Form data:', {
+                    token_address: formData.get('token_address'),
+                    count: formData.get('count')
+                });
+                
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ Request successful!');
+                    console.log('📊 Transaction count:', data.transaction_count);
+                    console.log('📁 Generated file:', data.filename);
+                    
+                    // Log all the processing logs to console
+                    if (data.logs) {
+                        console.group('📋 Processing Logs:');
+                        data.logs.forEach(log => {
+                            if (log.includes('Error') || log.includes('HTTP 4') || log.includes('HTTP 5')) {
+                                console.error(log);
+                            } else if (log.includes('Warning') || log.includes('No data')) {
+                                console.warn(log);
+                            } else {
+                                console.log(log);
+                            }
+                        });
+                        console.groupEnd();
+                    }
+                    
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p><strong>${data.message}</strong></p>
+                        <p>File: <code>${data.filename}</code></p>
+                        <a href="${data.download_url}" class="download-btn" download>
+                            📥 Download JSON File
+                        </a>
+                        <div class="logs">${data.logs.join('\n')}</div>
+                    `;
+                    
+                    console.log('🎉 Check the browser console for detailed logs!');
+                    
+                } else {
+                    console.error('❌ Request failed:', data.error);
+                    
+                    if (data.logs) {
+                        console.group('📋 Error Logs:');
+                        data.logs.forEach(log => console.error(log));
+                        console.groupEnd();
+                    }
+                    
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <p><strong>${data.error}</strong></p>
+                        ${data.logs ? `<div class="logs">${data.logs.join('\n')}</div>` : ''}
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('❌ Network or parsing error:', error);
+                
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p><strong>Network error: ${error.message}</strong></p>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+                result.style.display = 'block';
+            }
+        });
+        
+        // Also provide access to latest file
+        window.downloadLatest = function() {
+            window.open('/latest', '_blank');
+        };
+        
+        console.log('🌟 Solana Token Scanner loaded!');
+        console.log('💡 All processing logs will appear in this console.');
+        console.log('📁 You can also download the latest file anytime by running: downloadLatest()');
+    </script>
+</body>
+</html>
